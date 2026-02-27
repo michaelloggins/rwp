@@ -1,7 +1,7 @@
 {
     "name": "PL_RWP_Backfill",
     "properties": {
-        "description": "One-time backfill pipeline. Processes all historical results (2012-2026) in yearly batches to manage memory. Uses the same DF_RWP_Transform data flow.",
+        "description": "One-time backfill pipeline. Processes all historical results (2012-2026) in yearly batches to manage memory. Uses the same DF_RWP_Transform data flow. No watermark tracking -- nightly rolling reload handles ongoing updates.",
         "activities": [
             {
                 "name": "ForEach_Year",
@@ -46,7 +46,7 @@
                         },
                         {
                             "name": "Extract_FullLoad",
-                            "description": "Full extraction of all source tables (no watermark for backfill)",
+                            "description": "Extract source tables for this year's batch",
                             "type": "ExecutePipeline",
                             "dependsOn": [
                                 {
@@ -60,7 +60,7 @@
                                     "type": "PipelineReference"
                                 },
                                 "parameters": {
-                                    "LastWatermark": {
+                                    "RollingStartDate": {
                                         "value": "@variables('YearStart')",
                                         "type": "Expression"
                                     }
@@ -115,42 +115,6 @@
                             }
                         }
                     ]
-                }
-            },
-            {
-                "name": "Set_Final_Watermark",
-                "description": "After full backfill, set watermark to current max DATEENTER for incremental pipeline to pick up from",
-                "type": "SqlServerStoredProcedure",
-                "dependsOn": [
-                    {
-                        "activity": "ForEach_Year",
-                        "dependencyConditions": ["Succeeded"]
-                    }
-                ],
-                "policy": {
-                    "timeout": "0.00:10:00",
-                    "retry": 1,
-                    "retryIntervalInSeconds": 30
-                },
-                "typeProperties": {
-                    "storedProcedureName": "dbo.usp_UpdateWatermark",
-                    "storedProcedureParameters": {
-                        "TableName": {
-                            "value": "RESULTS",
-                            "type": "String"
-                        },
-                        "WatermarkValue": {
-                            "value": {
-                                "value": "@utcNow()",
-                                "type": "Expression"
-                            },
-                            "type": "DateTime"
-                        }
-                    }
-                },
-                "linkedServiceName": {
-                    "referenceName": "LS_Watermark_DB",
-                    "type": "LinkedServiceReference"
                 }
             }
         ],

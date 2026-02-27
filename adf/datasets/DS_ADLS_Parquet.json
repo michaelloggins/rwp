@@ -1,0 +1,40 @@
+{
+    "name": "DS_ADLS_Parquet",
+    "type": "Microsoft.DataFactory/factories/datasets",
+    "properties": {
+        "description": "Parameterized Parquet dataset on ADLS Gen2. Container and Directory are set per pipeline activity (staging/rwp/TABLE or gold/rwp/fact_results_with_pricing/year=YYYY).",
+        "type": "Parquet",
+        "linkedServiceName": {
+            "referenceName": "LS_ADLS_Gen2",
+            "type": "LinkedServiceReference"
+        },
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileSystem": {
+                    "value": "@dataset().Container",
+                    "type": "Expression"
+                },
+                "folderPath": {
+                    "value": "@dataset().Directory",
+                    "type": "Expression"
+                }
+            },
+            "compressionCodec": "snappy"
+        },
+        "parameters": {
+            "Container": {
+                "type": "String"
+            },
+            "Directory": {
+                "type": "String"
+            }
+        },
+        "schema": [],
+        "annotations": [
+            "RWP",
+            "Parquet",
+            "Parameterized"
+        ]
+    }
+}

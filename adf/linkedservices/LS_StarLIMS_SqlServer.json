@@ -1,0 +1,34 @@
+{
+    "name": "LS_StarLIMS_SqlServer",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "description": "On-premises StarLIMS SQL Server via Self-Hosted IR. Password is stored in Key Vault (kv-miravista-core) as secret 'starlims-sql-password'.",
+        "type": "SqlServer",
+        "typeProperties": {
+            "connectionString": "Data Source=MIRALIMSPRDDB02\\PRDLIMSSQL2019;Initial Catalog=STARLIMS_DATA;Integrated Security=False;User ID=@{linkedService().sqlUser}",
+            "password": {
+                "type": "AzureKeyVaultSecret",
+                "store": {
+                    "referenceName": "LS_KeyVault",
+                    "type": "LinkedServiceReference"
+                },
+                "secretName": "starlims-sql-password"
+            }
+        },
+        "connectVia": {
+            "referenceName": "IR_SelfHosted",
+            "type": "IntegrationRuntimeReference"
+        },
+        "parameters": {
+            "sqlUser": {
+                "type": "String",
+                "defaultValue": "adf_reader"
+            }
+        },
+        "annotations": [
+            "RWP",
+            "StarLIMS",
+            "OnPremises"
+        ]
+    }
+}

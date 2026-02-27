@@ -145,6 +145,7 @@ module rwpApp 'modules/rwp-function-app.bicep' = {
 
 var storageBlobDataContributor = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 var storageBlobDataReader = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+var keyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
 
 // Synapse needs Contributor to write to its default filesystem
 module synapseAdlsRbac 'modules/rbac-assignment.bicep' = {
@@ -176,6 +177,17 @@ module funcAdlsRbac 'modules/rbac-assignment.bicep' = {
     storageAccountName: adls.outputs.storageAccountName
     principalId: rwpApp.outputs.functionAppPrincipalId
     roleDefinitionId: storageBlobDataReader
+  }
+}
+
+// ADF needs Key Vault Secrets User to read StarLIMS password from KV
+module adfKvRbac 'modules/kv-rbac-assignment.bicep' = {
+  name: 'deploy-adf-kv-rbac'
+  scope: rgCore
+  params: {
+    keyVaultName: security.outputs.keyVaultName
+    principalId: adf.outputs.adfPrincipalId
+    roleDefinitionId: keyVaultSecretsUser
   }
 }
 

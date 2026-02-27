@@ -1,0 +1,8 @@
+{
+    "name": "IR_SelfHosted",
+    "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+    "properties": {
+        "description": "Self-hosted integration runtime for on-premises StarLIMS SQL Server access (MIRALIMSPRDDB02\\PRDLIMSSQL2019). Install the IR agent on a VM with network access to the StarLIMS database server.",
+        "type": "SelfHosted"
+    }
+}

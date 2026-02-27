@@ -1,0 +1,15 @@
+{
+    "name": "LS_KeyVault",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "description": "Key Vault linked service for secret retrieval. ADF managed identity must have Key Vault Secrets User role on kv-miravista-core.",
+        "type": "AzureKeyVault",
+        "typeProperties": {
+            "baseUrl": "https://kv-miravista-core.vault.azure.net/"
+        },
+        "annotations": [
+            "RWP",
+            "Security"
+        ]
+    }
+}
