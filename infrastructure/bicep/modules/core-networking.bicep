@@ -1,33 +1,63 @@
 // =============================================================================
-// Core Networking: Add subnets to existing VNet, create missing DNS Zones
+// Core Networking: New VNet in IPAM-compliant Central US Shared Services range,
+// subnets, NSGs, and Private DNS Zones
 // Deployed to: MVD-Core-rg
 //
-// References existing:
-//   - VNet: vnet-miravista-core (10.102.0.0/16)
-//   - Subnet: snet-private-endpoints (10.102.1.0/24)
-//   - DNS Zones: blob, vault, websites (with existing VNet links)
+// IPAM Allocation:
+//   VNet: 10.118.0.0/22 (Central US > Workload Services > Shared Services)
+//   snet-private-endpoints:  10.118.0.0/24
+//   snet-functions:          10.118.1.0/24  (delegated to Microsoft.Web)
+//   snet-adf-ir:             10.118.2.0/24
+//   snet-apps:               10.118.3.0/24
 //
-// Creates new:
-//   - Subnets: snet-functions, snet-adf-ir, snet-apps
-//   - DNS Zones: dfs, sql, adf (with VNet links)
-//   - NSG for functions subnet
+// DNS Zones:
+//   Existing (add VNet link): blob, vault, websites
+//   New (create + link):      dfs, sql, adf
+//
+// Note: VNet peering with vnet-hub-core is required for on-premises
+// connectivity via vpngw-hub-core. This should be handled by the
+// platform/connectivity team after deployment.
 // =============================================================================
 
 param location string
-param vnetName string = 'vnet-miravista-core'
+param vnetName string = 'vnet-mvd-cus-001'
 
-// --- Reference Existing VNet + Subnet ----------------------------------------
+// --- NSGs -------------------------------------------------------------------
 
-resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' existing = {
-  name: vnetName
+resource nsgPrivateEndpoints 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
+  name: 'nsg-private-endpoints'
+  location: location
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowVNetInbound'
+        properties: {
+          priority: 100
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: '*'
+          sourceAddressPrefix: 'VirtualNetwork'
+          destinationAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+        }
+      }
+      {
+        name: 'DenyAllInbound'
+        properties: {
+          priority: 4096
+          direction: 'Inbound'
+          access: 'Deny'
+          protocol: '*'
+          sourceAddressPrefix: '*'
+          destinationAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationPortRange: '*'
+        }
+      }
+    ]
+  }
 }
-
-resource snetPrivateEndpoints 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' existing = {
-  parent: vnet
-  name: 'snet-private-endpoints'
-}
-
-// --- NSG for Functions Subnet ------------------------------------------------
 
 resource nsgFunctions 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
   name: 'nsg-functions'
@@ -51,46 +81,61 @@ resource nsgFunctions 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
   }
 }
 
-// --- New Subnets (added to existing VNet) ------------------------------------
-// Deployed sequentially to avoid ARM VNet lock contention
+// --- VNet + Subnets ---------------------------------------------------------
+// 10.118.0.0/22 = Central US, Shared Services (IPAM-compliant)
 
-resource snetFunctions 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  parent: vnet
-  name: 'snet-functions'
+resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
+  name: vnetName
+  location: location
   properties: {
-    addressPrefix: '10.102.2.0/24'
-    networkSecurityGroup: { id: nsgFunctions.id }
-    delegations: [
+    addressSpace: {
+      addressPrefixes: [ '10.118.0.0/22' ]
+    }
+    subnets: [
       {
-        name: 'delegation-web'
+        name: 'snet-private-endpoints'
         properties: {
-          serviceName: 'Microsoft.Web/serverFarms'
+          addressPrefix: '10.118.0.0/24'
+          networkSecurityGroup: { id: nsgPrivateEndpoints.id }
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
+      {
+        name: 'snet-functions'
+        properties: {
+          addressPrefix: '10.118.1.0/24'
+          networkSecurityGroup: { id: nsgFunctions.id }
+          delegations: [
+            {
+              name: 'delegation-web'
+              properties: {
+                serviceName: 'Microsoft.Web/serverFarms'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'snet-adf-ir'
+        properties: {
+          addressPrefix: '10.118.2.0/24'
+        }
+      }
+      {
+        name: 'snet-apps'
+        properties: {
+          addressPrefix: '10.118.3.0/24'
         }
       }
     ]
   }
 }
 
-resource snetAdfIr 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  parent: vnet
-  name: 'snet-adf-ir'
-  dependsOn: [ snetFunctions ] // Serialize subnet operations
-  properties: {
-    addressPrefix: '10.102.3.0/24'
-  }
-}
+// --- Private DNS Zones ------------------------------------------------------
+// Existing zones: add VNet link to the new VNet
+// New zones: create zone + VNet link
 
-resource snetApps 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
-  parent: vnet
-  name: 'snet-apps'
-  dependsOn: [ snetAdfIr ] // Serialize subnet operations
-  properties: {
-    addressPrefix: '10.102.4.0/24'
-  }
-}
-
-// --- Reference Existing DNS Zones --------------------------------------------
-
+// Reference existing DNS zones (already in MVD-Core-rg)
 resource dnsZoneBlob 'Microsoft.Network/privateDnsZones@2020-06-01' existing = {
   name: 'privatelink.blob.core.windows.net'
 }
@@ -103,8 +148,38 @@ resource dnsZoneWebsites 'Microsoft.Network/privateDnsZones@2020-06-01' existing
   name: 'privatelink.azurewebsites.net'
 }
 
-// --- Create Missing DNS Zones ------------------------------------------------
+// Add VNet links from existing DNS zones to the new VNet
+resource blobVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: dnsZoneBlob
+  name: 'link-${vnetName}'
+  location: 'global'
+  properties: {
+    virtualNetwork: { id: vnet.id }
+    registrationEnabled: false
+  }
+}
 
+resource vaultVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: dnsZoneVault
+  name: 'link-${vnetName}'
+  location: 'global'
+  properties: {
+    virtualNetwork: { id: vnet.id }
+    registrationEnabled: false
+  }
+}
+
+resource websitesVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: dnsZoneWebsites
+  name: 'link-${vnetName}'
+  location: 'global'
+  properties: {
+    virtualNetwork: { id: vnet.id }
+    registrationEnabled: false
+  }
+}
+
+// Create new DNS zones + VNet links
 resource dnsZoneDfs 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.dfs.core.windows.net'
   location: 'global'
@@ -119,8 +194,6 @@ resource dnsZoneAdf 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.datafactory.azure.net'
   location: 'global'
 }
-
-// VNet links for new DNS zones only (existing zones already have links)
 
 resource dfsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: dnsZoneDfs
@@ -156,10 +229,10 @@ resource adfVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
 
 output vnetId string = vnet.id
 output vnetName string = vnet.name
-output snetPrivateEndpointsId string = snetPrivateEndpoints.id
-output snetFunctionsId string = snetFunctions.id
-output snetAdfIrId string = snetAdfIr.id
-output snetAppsId string = snetApps.id
+output snetPrivateEndpointsId string = vnet.properties.subnets[0].id
+output snetFunctionsId string = vnet.properties.subnets[1].id
+output snetAdfIrId string = vnet.properties.subnets[2].id
+output snetAppsId string = vnet.properties.subnets[3].id
 output dnsZoneIds object = {
   blob: dnsZoneBlob.id
   dfs: dnsZoneDfs.id

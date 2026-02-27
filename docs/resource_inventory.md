@@ -30,14 +30,18 @@ Examples: `func-rwp-cus-001`, `rg-rwp-cus-001`, `asp-rwp-cus-001`
 
 ## Network Allocation (from AzureIPAM)
 
-VNet: `vnet-miravista-core` (10.102.0.0/16, MVD-Core-rg)
+IPAM Path: Enterprise Root (10.96.0.0/11) > Central US (10.112.0.0/12) > Workload Services (10.120.0.0/13) > Shared Services (10.118.0.0/16)
 
-| Subnet | CIDR | Purpose | Status |
-|---|---|---|---|
-| snet-private-endpoints | 10.102.1.0/24 | ADLS, Synapse, ADF, KV private endpoints | Existing |
-| snet-functions | 10.102.2.0/24 | Azure Functions VNet integration | New (Bicep) |
-| snet-adf-ir | 10.102.3.0/24 | ADF Integration Runtime | New (Bicep) |
-| snet-apps | 10.102.4.0/24 | Future app services (SWA, etc.) | New (Bicep) |
+VNet: `vnet-mvd-cus-001` (10.118.0.0/22, MVD-Core-rg)
+
+| Subnet | CIDR | Purpose |
+|---|---|---|
+| snet-private-endpoints | 10.118.0.0/24 | ADLS, Synapse, ADF, KV private endpoints |
+| snet-functions | 10.118.1.0/24 | Azure Functions VNet integration |
+| snet-adf-ir | 10.118.2.0/24 | ADF Integration Runtime |
+| snet-apps | 10.118.3.0/24 | Future app services (SWA, etc.) |
+
+Note: Requires VNet peering with `vnet-hub-core` for on-premises connectivity.
 
 ---
 
@@ -47,21 +51,19 @@ VNet: `vnet-miravista-core` (10.102.0.0/16, MVD-Core-rg)
 
 | # | Resource | Type | Name |
 |---|---|---|---|
-| 1 | Virtual Network | Microsoft.Network/virtualNetworks | vnet-miravista-core (10.102.0.0/16) |
-| 2 | Subnet | (under VNet) | snet-private-endpoints (10.102.1.0/24) |
-| 3 | Log Analytics | Microsoft.OperationalInsights/workspaces | log-miravista-core (90-day retention) |
-| 4 | Key Vault | Microsoft.KeyVault/vaults | kv-miravista-core (RBAC auth) |
-| 5-7 | Private DNS Zones | Microsoft.Network/privateDnsZones | blob, vault, websites (with VNet links) |
+| 1 | Log Analytics | Microsoft.OperationalInsights/workspaces | log-miravista-core (90-day retention) |
+| 2 | Key Vault | Microsoft.KeyVault/vaults | kv-miravista-core (RBAC auth) |
+| 3-5 | Private DNS Zones | Microsoft.Network/privateDnsZones | blob, vault, websites (with VNet links) |
 
 ### Created by Bicep
 
 | # | Resource | Type | Name | Module |
 |---|---|---|---|---|
-| 1 | Subnet | (under VNet) | snet-functions (10.102.2.0/24) | core-networking |
-| 2 | Subnet | (under VNet) | snet-adf-ir (10.102.3.0/24) | core-networking |
-| 3 | Subnet | (under VNet) | snet-apps (10.102.4.0/24) | core-networking |
-| 4 | NSG | Microsoft.Network/networkSecurityGroups | nsg-functions | core-networking |
-| 5-7 | Private DNS Zones | Microsoft.Network/privateDnsZones | dfs, sql, adf (with VNet links) | core-networking |
+| 1 | Virtual Network | Microsoft.Network/virtualNetworks | vnet-mvd-cus-001 (10.118.0.0/22) | core-networking |
+| 2 | NSG | Microsoft.Network/networkSecurityGroups | nsg-private-endpoints | core-networking |
+| 3 | NSG | Microsoft.Network/networkSecurityGroups | nsg-functions | core-networking |
+| 4-6 | Private DNS Zones | Microsoft.Network/privateDnsZones | dfs, sql, adf (with VNet links) | core-networking |
+| 7-9 | DNS VNet Links | (under existing DNS zones) | blob, vault, websites links to vnet-mvd-cus-001 | core-networking |
 | 8 | Encryption Key | (under Key Vault) | adls-cmk (RSA 2048) | core-security |
 | 9 | Private Endpoint | Microsoft.Network/privateEndpoints | pe-kv-miravista-core-vault | core-security |
 | 10 | User-Assigned Identity | Microsoft.ManagedIdentity | id-mvdcoredatalake | adls |
