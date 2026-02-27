@@ -1,0 +1,197 @@
+{
+    "name": "PL_RWP_Master",
+    "properties": {
+        "description": "Nightly orchestration pipeline for RWP ETL. Reloads current year + prior year partitions. Historical partitions (year <= currentYear-2) are untouched after backfill. No watermark tracking needed.",
+        "activities": [
+            {
+                "name": "Set_RollingStartDate",
+                "description": "Compute Jan 1 of prior year. E.g., if today is 2026-02-26, this produces 2025-01-01. This is the start of our rolling reload window.",
+                "type": "SetVariable",
+                "dependsOn": [],
+                "typeProperties": {
+                    "variableName": "RollingStartDate",
+                    "value": {
+                        "value": "@concat(string(sub(int(formatDateTime(utcNow(), 'yyyy')), 1)), '-01-01')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Set_PriorYear",
+                "description": "Prior year as string (e.g., '2025')",
+                "type": "SetVariable",
+                "dependsOn": [],
+                "typeProperties": {
+                    "variableName": "PriorYear",
+                    "value": {
+                        "value": "@string(sub(int(formatDateTime(utcNow(), 'yyyy')), 1))",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Set_CurrentYear",
+                "description": "Current year as string (e.g., '2026')",
+                "type": "SetVariable",
+                "dependsOn": [],
+                "typeProperties": {
+                    "variableName": "CurrentYear",
+                    "value": {
+                        "value": "@formatDateTime(utcNow(), 'yyyy')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Delete_PriorYearPartition",
+                "description": "Clear prior year partition folder before rewrite. Ensures clean overwrite with no leftover files.",
+                "type": "Delete",
+                "dependsOn": [
+                    {
+                        "activity": "Set_PriorYear",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "gold",
+                            "Directory": {
+                                "value": "@concat('rwp/fact_results_with_pricing/year=', variables('PriorYear'))",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "enableLogging": false,
+                    "storeSettings": {
+                        "type": "AzureBlobFSReadSettings",
+                        "recursive": true
+                    }
+                }
+            },
+            {
+                "name": "Delete_CurrentYearPartition",
+                "description": "Clear current year partition folder before rewrite.",
+                "type": "Delete",
+                "dependsOn": [
+                    {
+                        "activity": "Set_CurrentYear",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "gold",
+                            "Directory": {
+                                "value": "@concat('rwp/fact_results_with_pricing/year=', variables('CurrentYear'))",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "enableLogging": false,
+                    "storeSettings": {
+                        "type": "AzureBlobFSReadSettings",
+                        "recursive": true
+                    }
+                }
+            },
+            {
+                "name": "Execute_Extract",
+                "description": "Extract reference tables (full) + RESULTS (rolling 2-year window) from StarLIMS to staging.",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "Set_RollingStartDate",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "PL_RWP_Extract",
+                        "type": "PipelineReference"
+                    },
+                    "parameters": {
+                        "RollingStartDate": {
+                            "value": "@variables('RollingStartDate')",
+                            "type": "Expression"
+                        }
+                    },
+                    "waitOnCompletion": true
+                }
+            },
+            {
+                "name": "Execute_Transform",
+                "description": "Run the Mapping Data Flow: joins, pricing, aggregation. Writes to year=YYYY/ partitions in gold zone.",
+                "type": "ExecuteDataFlow",
+                "dependsOn": [
+                    {
+                        "activity": "Execute_Extract",
+                        "dependencyConditions": ["Succeeded"]
+                    },
+                    {
+                        "activity": "Delete_PriorYearPartition",
+                        "dependencyConditions": ["Completed"]
+                    },
+                    {
+                        "activity": "Delete_CurrentYearPartition",
+                        "dependencyConditions": ["Completed"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.04:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 300
+                },
+                "typeProperties": {
+                    "dataFlow": {
+                        "referenceName": "DF_RWP_Transform",
+                        "type": "DataFlowReference"
+                    },
+                    "compute": {
+                        "coreCount": 8,
+                        "computeType": "General"
+                    },
+                    "traceLevel": "Fine",
+                    "runConcurrently": false,
+                    "continueOnError": false
+                }
+            }
+        ],
+        "variables": {
+            "RollingStartDate": {
+                "type": "String",
+                "defaultValue": ""
+            },
+            "PriorYear": {
+                "type": "String",
+                "defaultValue": ""
+            },
+            "CurrentYear": {
+                "type": "String",
+                "defaultValue": ""
+            }
+        },
+        "annotations": [
+            "RWP",
+            "Master",
+            "Nightly",
+            "RollingPartitionReload"
+        ]
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}

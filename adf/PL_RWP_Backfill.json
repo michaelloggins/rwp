@@ -1,0 +1,178 @@
+{
+    "name": "PL_RWP_Backfill",
+    "properties": {
+        "description": "One-time backfill pipeline. Processes all historical results (2012-2026) in yearly batches to manage memory. Uses the same DF_RWP_Transform data flow.",
+        "activities": [
+            {
+                "name": "ForEach_Year",
+                "type": "ForEach",
+                "dependsOn": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@createArray(2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026)",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "batchCount": 1,
+                    "activities": [
+                        {
+                            "name": "Set_YearStart",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "typeProperties": {
+                                "variableName": "YearStart",
+                                "value": {
+                                    "value": "@concat(string(item()), '-01-01')",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "Set_YearEnd",
+                            "type": "SetVariable",
+                            "dependsOn": [
+                                {
+                                    "activity": "Set_YearStart",
+                                    "dependencyConditions": ["Succeeded"]
+                                }
+                            ],
+                            "typeProperties": {
+                                "variableName": "YearEnd",
+                                "value": {
+                                    "value": "@concat(string(item()), '-12-31')",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "Extract_FullLoad",
+                            "description": "Full extraction of all source tables (no watermark for backfill)",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [
+                                {
+                                    "activity": "Set_YearEnd",
+                                    "dependencyConditions": ["Succeeded"]
+                                }
+                            ],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "PL_RWP_Extract",
+                                    "type": "PipelineReference"
+                                },
+                                "parameters": {
+                                    "LastWatermark": {
+                                        "value": "@variables('YearStart')",
+                                        "type": "Expression"
+                                    }
+                                },
+                                "waitOnCompletion": true
+                            }
+                        },
+                        {
+                            "name": "Transform_Year",
+                            "description": "Run transformation data flow for this year's batch",
+                            "type": "ExecuteDataFlow",
+                            "dependsOn": [
+                                {
+                                    "activity": "Extract_FullLoad",
+                                    "dependencyConditions": ["Succeeded"]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "0.06:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 600
+                            },
+                            "typeProperties": {
+                                "dataFlow": {
+                                    "referenceName": "DF_RWP_Transform",
+                                    "type": "DataFlowReference"
+                                },
+                                "compute": {
+                                    "coreCount": 16,
+                                    "computeType": "General"
+                                },
+                                "traceLevel": "Fine",
+                                "runConcurrently": false,
+                                "continueOnError": false
+                            }
+                        },
+                        {
+                            "name": "Log_Year_Complete",
+                            "type": "SetVariable",
+                            "dependsOn": [
+                                {
+                                    "activity": "Transform_Year",
+                                    "dependencyConditions": ["Succeeded"]
+                                }
+                            ],
+                            "typeProperties": {
+                                "variableName": "LastCompletedYear",
+                                "value": {
+                                    "value": "@string(item())",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Set_Final_Watermark",
+                "description": "After full backfill, set watermark to current max DATEENTER for incremental pipeline to pick up from",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "ForEach_Year",
+                        "dependencyConditions": ["Succeeded"]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "storedProcedureName": "dbo.usp_UpdateWatermark",
+                    "storedProcedureParameters": {
+                        "TableName": {
+                            "value": "RESULTS",
+                            "type": "String"
+                        },
+                        "WatermarkValue": {
+                            "value": {
+                                "value": "@utcNow()",
+                                "type": "Expression"
+                            },
+                            "type": "DateTime"
+                        }
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "LS_Watermark_DB",
+                    "type": "LinkedServiceReference"
+                }
+            }
+        ],
+        "variables": {
+            "YearStart": {
+                "type": "String",
+                "defaultValue": "2012-01-01"
+            },
+            "YearEnd": {
+                "type": "String",
+                "defaultValue": "2012-12-31"
+            },
+            "LastCompletedYear": {
+                "type": "String",
+                "defaultValue": ""
+            }
+        },
+        "annotations": [
+            "RWP",
+            "Backfill",
+            "OneTime"
+        ]
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,430 @@
+{
+    "name": "PL_RWP_Extract",
+    "properties": {
+        "description": "Extracts source tables from StarLIMS to ADLS Gen2 staging zone as Parquet. Reference tables are full-load. RESULTS uses a rolling 2-year window (current year + prior year).",
+        "activities": [
+            {
+                "name": "Extract_RESULTS_Rolling",
+                "description": "Extract RESULTS for the rolling window only (current year + prior year). This is the only large table; scoping to 2 years keeps the extract light on StarLIMS.",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": {
+                            "value": "SELECT ORIGREC, FOLDERNO, ORDNO, TESTCODE, ANALYTE, FINAL, NUMRES, RN2, RN3, S, DATEENTER FROM RESULTS WHERE DATEENTER >= '@{pipeline().parameters.RollingStartDate}'",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "01:00:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings",
+                            "copyBehavior": "FlattenHierarchy"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RESULTS"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_CENTRALRECEIVING",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 60
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT ORIGREC, EXTERNAL_ID, BIRTH_DATE, CLIENT_SAMPLE_ID, DATE_COLLECTED, FIRST_NAME, LAST_NAME, SPEC_SOURCE, RASCLIENTID FROM CENTRALRECEIVING",
+                        "queryTimeout": "00:30:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/CENTRALRECEIVING"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_RASCLIENTS",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:30:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT RASCLIENTID, COMPNAME, CATEGORY, STATE, CITY, ZIP, PRICELISTID FROM RASCLIENTS",
+                        "queryTimeout": "00:10:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RASCLIENTS"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_FOLDERS",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT FOLDERNO, EXTERNAL_ID, TESTGROUPNAME FROM FOLDERS",
+                        "queryTimeout": "00:30:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/FOLDERS"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_TESTGROUPNAMES",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:30:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT TESTGROUPNAME, TESTPANEL FROM TESTGROUPNAMES",
+                        "queryTimeout": "00:10:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/TESTGROUPNAMES"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_TESTS",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:30:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT TESTNO, TESTCODE, LEGACY_TESTCODE FROM TESTS",
+                        "queryTimeout": "00:10:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/TESTS"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_RASPRICELIST",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:30:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT PRICELISTID, PRICELISTVERSION, STARTDDATE, STATUS, EXPDATE FROM RASPRICELIST",
+                        "queryTimeout": "00:10:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RASPRICELIST"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_RASTESTPRICES",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:30:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT PRICELISTID, PRICELISTVERSION, TESTCODE, PRICE FROM RASTESTPRICES",
+                        "queryTimeout": "00:10:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RASTESTPRICES"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "Extract_METADATA_LOOKUP_VALUES",
+                "type": "Copy",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.00:30:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30
+                },
+                "typeProperties": {
+                    "source": {
+                        "type": "SqlServerSource",
+                        "sqlReaderQuery": "SELECT LOOKUP_NAME, VALUE, TEXT FROM METADATA_LOOKUP_VALUES WHERE LOOKUP_NAME = 'PanelPricing'",
+                        "queryTimeout": "00:10:00",
+                        "isolationLevel": "ReadUncommitted"
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings",
+                            "fileExtension": ".parquet"
+                        }
+                    },
+                    "enableStaging": false
+                },
+                "inputs": [
+                    {
+                        "referenceName": "DS_StarLIMS_SqlServer",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/METADATA_LOOKUP_VALUES"
+                        }
+                    }
+                ]
+            }
+        ],
+        "parameters": {
+            "RollingStartDate": {
+                "type": "string",
+                "defaultValue": "2025-01-01"
+            }
+        },
+        "annotations": [
+            "RWP",
+            "Extract",
+            "StarLIMS",
+            "RollingWindow"
+        ]
+    }
+}

@@ -1,0 +1,505 @@
+{
+    "name": "DF_RWP_Transform",
+    "properties": {
+        "description": "Mapping Data Flow: joins, filters, test code mapping, point-in-time price resolution, aggregation. Outputs to ADLS gold zone as Parquet partitioned by year(DateEnter).",
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "name": "SrcResults",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RESULTS"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcCentralReceiving",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/CENTRALRECEIVING"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcRasClients",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RASCLIENTS"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcFolders",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/FOLDERS"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcTestGroupNames",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/TESTGROUPNAMES"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcTests",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/TESTS"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcRasPriceList",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RASPRICELIST"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcRasTestPrices",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/RASTESTPRICES"
+                        }
+                    }
+                },
+                {
+                    "name": "SrcMetadataLookup",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "staging",
+                            "Directory": "rwp/METADATA_LOOKUP_VALUES"
+                        }
+                    }
+                }
+            ],
+            "sinks": [
+                {
+                    "name": "SinkGoldParquet",
+                    "dataset": {
+                        "referenceName": "DS_ADLS_Parquet",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Container": "gold",
+                            "Directory": "rwp/fact_results_with_pricing"
+                        }
+                    }
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "FilterResults",
+                    "description": "Step 2a: Filter out QNS/C/U results and excluded test codes. Keep Cancel rows for status derivation."
+                },
+                {
+                    "name": "JoinResultsFolders",
+                    "description": "Step 2b: Results LEFT JOIN Folders on FOLDERNO"
+                },
+                {
+                    "name": "JoinFoldersCR",
+                    "description": "Step 2b: LEFT JOIN CentralReceiving on EXTERNAL_ID"
+                },
+                {
+                    "name": "JoinCRClients",
+                    "description": "Step 2b: LEFT JOIN RasClients on RASCLIENTID"
+                },
+                {
+                    "name": "FilterCompanies",
+                    "description": "Step 2c: Exclude test companies, zzz%, RESEARCH ONLY, Internal category"
+                },
+                {
+                    "name": "JoinTestGroupNames",
+                    "description": "Step 2e: LEFT JOIN TestGroupNames on TESTGROUPNAME"
+                },
+                {
+                    "name": "JoinTests",
+                    "description": "Step 2e: LEFT JOIN Tests on TESTGROUPNAME = TESTNO"
+                },
+                {
+                    "name": "DeriveTestCodeAndPanel",
+                    "description": "Step 2f: Resolve test code via mapping or legacy_testcode. Determine IsPanel flag."
+                },
+                {
+                    "name": "DeriveHasPending",
+                    "description": "Step 2d: Flag folders with Logged/Draft results"
+                },
+                {
+                    "name": "RankPriceListVersions",
+                    "description": "Step 2g: Window function to rank price list versions by STARTDDATE DESC per PRICELISTID, filtering to STARTDDATE <= DATEENTER"
+                },
+                {
+                    "name": "JoinTestPricesWithRankedPL",
+                    "description": "Step 2g: Join RASTESTPRICES with ranked price list, filter to rank=1"
+                },
+                {
+                    "name": "ConditionalSplitPanelVsTest",
+                    "description": "Step 2g: Split panel tests vs non-panel for different pricing paths"
+                },
+                {
+                    "name": "LookupPanelName",
+                    "description": "Step 2g: Panel pricing - look up panel name from code via METADATA_LOOKUP_VALUES"
+                },
+                {
+                    "name": "LookupPanelPrice",
+                    "description": "Step 2g: Panel pricing - look up price from panel name via METADATA_LOOKUP_VALUES"
+                },
+                {
+                    "name": "UnionPricingPaths",
+                    "description": "Step 2g: Combine test-priced and panel-priced rows"
+                },
+                {
+                    "name": "DeriveCancelStatus",
+                    "description": "Step 2h: CancelStatus = Cancel if S='Cancel' or RN3='C', else ''"
+                },
+                {
+                    "name": "AggregateByOrdnoCompName",
+                    "description": "Step 2i: GROUP BY ORDNO, COMPNAME with MIN/MAX aggregations"
+                },
+                {
+                    "name": "AddETLLoadDate",
+                    "description": "Add ETL_LoadDate = currentTimestamp()"
+                },
+                {
+                    "name": "DerivePartitionYear",
+                    "description": "Derive year partition column from DateEnter for Parquet partitioning"
+                }
+            ],
+            "scriptLines": [
+                "// =============================================================================",
+                "// DF_RWP_Transform - ADF Mapping Data Flow Script",
+                "// =============================================================================",
+                "",
+                "// --- Step 2a: Filter Results ---",
+                "source(output(",
+                "    ORIGREC as integer,",
+                "    FOLDERNO as integer,",
+                "    ORDNO as integer,",
+                "    TESTCODE as integer,",
+                "    ANALYTE as string,",
+                "    FINAL as string,",
+                "    NUMRES as string,",
+                "    RN2 as string,",
+                "    RN3 as string,",
+                "    S as string,",
+                "    DATEENTER as timestamp",
+                ")) ~> SrcResults",
+                "",
+                "SrcResults filter(",
+                "    !in(['QNS','C','U'], NUMRES)",
+                "    && !in([432,429,443,440], TESTCODE)",
+                ") ~> FilterResults",
+                "",
+                "// --- Sources (other tables) ---",
+                "source(output(",
+                "    ORIGREC as integer,",
+                "    EXTERNAL_ID as string,",
+                "    BIRTH_DATE as timestamp,",
+                "    CLIENT_SAMPLE_ID as string,",
+                "    DATE_COLLECTED as timestamp,",
+                "    FIRST_NAME as string,",
+                "    LAST_NAME as string,",
+                "    SPEC_SOURCE as string,",
+                "    RASCLIENTID as string",
+                ")) ~> SrcCentralReceiving",
+                "",
+                "source(output(",
+                "    RASCLIENTID as string,",
+                "    COMPNAME as string,",
+                "    CATEGORY as string,",
+                "    STATE as string,",
+                "    CITY as string,",
+                "    ZIP as string,",
+                "    PRICELISTID as string",
+                ")) ~> SrcRasClients",
+                "",
+                "source(output(",
+                "    FOLDERNO as integer,",
+                "    EXTERNAL_ID as string,",
+                "    TESTGROUPNAME as string",
+                ")) ~> SrcFolders",
+                "",
+                "source(output(",
+                "    TESTGROUPNAME as string,",
+                "    TESTPANEL as string",
+                ")) ~> SrcTestGroupNames",
+                "",
+                "source(output(",
+                "    TESTNO as string,",
+                "    TESTCODE as string,",
+                "    LEGACY_TESTCODE as string",
+                ")) ~> SrcTests",
+                "",
+                "source(output(",
+                "    PRICELISTID as string,",
+                "    PRICELISTVERSION as integer,",
+                "    STARTDDATE as timestamp,",
+                "    STATUS as string,",
+                "    EXPDATE as timestamp",
+                ")) ~> SrcRasPriceList",
+                "",
+                "source(output(",
+                "    PRICELISTID as string,",
+                "    PRICELISTVERSION as integer,",
+                "    TESTCODE as integer,",
+                "    PRICE as decimal(8,2)",
+                ")) ~> SrcRasTestPrices",
+                "",
+                "source(output(",
+                "    LOOKUP_NAME as string,",
+                "    VALUE as string,",
+                "    TEXT as string",
+                ")) ~> SrcMetadataLookup",
+                "",
+                "// --- Step 2b: Join chain ---",
+                "FilterResults, SrcFolders join(",
+                "    FilterResults@FOLDERNO == SrcFolders@FOLDERNO,",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> JoinResultsFolders",
+                "",
+                "JoinResultsFolders, SrcCentralReceiving join(",
+                "    SrcFolders@EXTERNAL_ID == SrcCentralReceiving@EXTERNAL_ID,",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> JoinFoldersCR",
+                "",
+                "JoinFoldersCR, SrcRasClients join(",
+                "    SrcCentralReceiving@RASCLIENTID == SrcRasClients@RASCLIENTID,",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> JoinCRClients",
+                "",
+                "// --- Step 2c: Filter companies ---",
+                "JoinCRClients filter(",
+                "    !startsWith(upper(COMPNAME), 'ZZZ')",
+                "    && !in(['Test RightFax 2','Test RightFax 1','Test RightFax 4','ACCL0933','RESEARCH ONLY','MiraVista Quality System','Greater Than','Additional Positive Unconfirmed'], COMPNAME)",
+                "    && !startsWith(COMPNAME, 'RESEARCH ONLY')",
+                "    && CATEGORY != 'Internal'",
+                ") ~> FilterCompanies",
+                "",
+                "// --- Step 2e: Join test group names and tests ---",
+                "FilterCompanies, SrcTestGroupNames join(",
+                "    SrcFolders@TESTGROUPNAME == SrcTestGroupNames@TESTGROUPNAME,",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> JoinTestGroupNames",
+                "",
+                "JoinTestGroupNames, SrcTests join(",
+                "    SrcTestGroupNames@TESTGROUPNAME == SrcTests@TESTNO,",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> JoinTests",
+                "",
+                "// --- Step 2f: Derive test code resolution and panel flag ---",
+                "JoinTests derive(",
+                "    IsPanel = iif(like(SrcFolders@TESTGROUPNAME, '%panel%'), true(), iif(SrcTestGroupNames@TESTPANEL == 'Y', true(), false())),",
+                "    SourceTestCode = FilterResults@TESTCODE,",
+                "    ResolvedTestCode = iif(",
+                "        !isNull(SrcTests@TESTNO) && SrcTests@TESTCODE != '',",
+                "        toInteger(SrcTests@LEGACY_TESTCODE),",
+                "        case(FilterResults@TESTCODE,",
+                "            318, 316,",
+                "            457, 331,",
+                "            465, 402,",
+                "            459, 332,",
+                "            460, 315,",
+                "            461, 316,",
+                "            462, 320,",
+                "            463, 321,",
+                "            467, 403,",
+                "            469, 404,",
+                "            466, 405,",
+                "            468, 406,",
+                "            FilterResults@TESTCODE",
+                "        )",
+                "    )",
+                ") ~> DeriveTestCodeAndPanel",
+                "",
+                "// --- Step 2d: Flag folders with pending results ---",
+                "// Uses an exists check against RESULTS where S IN ('Logged','Draft')",
+                "// Implemented as a window function: if any result in the folder has pending status, flag it",
+                "DeriveTestCodeAndPanel window(",
+                "    over(FilterResults@FOLDERNO),",
+                "    HasPendingResults = iif(countIf(in(['Logged','Draft'], S)) > 0, true(), false())",
+                ") ~> DeriveHasPending",
+                "",
+                "// --- Step 2h: Derive cancel status ---",
+                "DeriveHasPending derive(",
+                "    CancelStatus = iif(S == 'Cancel', 'Cancel', iif(RN3 == 'C', 'Cancel', ''))",
+                ") ~> DeriveCancelStatus",
+                "",
+                "// --- Step 2g: Point-in-time pricing (THE CRITICAL FIX) ---",
+                "// Conditional split: panel vs non-panel",
+                "DeriveCancelStatus split(",
+                "    IsPanel == true(),",
+                "    disjoint: true",
+                ") ~> ConditionalSplitPanelVsTest@(PanelTests, NonPanelTests)",
+                "",
+                "// --- Non-panel pricing path ---",
+                "// Rank price list versions: for each (PRICELISTID, ResolvedTestCode, DATEENTER),",
+                "// find the version with MAX(STARTDDATE) WHERE STARTDDATE <= DATEENTER",
+                "// Do NOT filter on STATUS -- retired versions are valid for historical lookups",
+                "SrcRasTestPrices, SrcRasPriceList join(",
+                "    SrcRasTestPrices@PRICELISTID == SrcRasPriceList@PRICELISTID",
+                "    && SrcRasTestPrices@PRICELISTVERSION == SrcRasPriceList@PRICELISTVERSION,",
+                "    joinType: 'inner',",
+                "    matchType: 'exact'",
+                ") ~> JoinTestPricesWithRankedPL",
+                "",
+                "JoinTestPricesWithRankedPL window(",
+                "    over(SrcRasTestPrices@PRICELISTID, SrcRasTestPrices@TESTCODE),",
+                "    asc(SrcRasPriceList@STARTDDATE, true),",
+                "    PLRank = rowNumber()",
+                ") ~> RankPriceListVersions",
+                "",
+                "// Join non-panel results with price lookup",
+                "// The join condition includes STARTDDATE <= DATEENTER",
+                "// Post-filter to rank=1 (most recent version before result date)",
+                "ConditionalSplitPanelVsTest@NonPanelTests, RankPriceListVersions join(",
+                "    SrcRasClients@PRICELISTID == SrcRasTestPrices@PRICELISTID",
+                "    && ResolvedTestCode == SrcRasTestPrices@TESTCODE",
+                "    && SrcRasPriceList@STARTDDATE <= DATEENTER,",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> JoinNonPanelPrices",
+                "",
+                "// Window to pick the most recent price version (highest STARTDDATE <= DATEENTER)",
+                "JoinNonPanelPrices window(",
+                "    over(ORDNO, COMPNAME),",
+                "    desc(SrcRasPriceList@STARTDDATE, true),",
+                "    PriceRank = rowNumber()",
+                ") ~> RankNonPanelPrices",
+                "",
+                "RankNonPanelPrices filter(",
+                "    PriceRank == 1 || isNull(SrcRasTestPrices@PRICE)",
+                ") ~> FilterTopPrice",
+                "",
+                "FilterTopPrice derive(",
+                "    Price = SrcRasTestPrices@PRICE,",
+                "    PriceListVersion = SrcRasTestPrices@PRICELISTVERSION,",
+                "    PricingMethod = 'TEST'",
+                ") ~> DeriveNonPanelPrice",
+                "",
+                "// --- Panel pricing path ---",
+                "// Step 1: Look up panel name from code",
+                "ConditionalSplitPanelVsTest@PanelTests, SrcMetadataLookup join(",
+                "    toString(ResolvedTestCode) == SrcMetadataLookup@VALUE",
+                "    && SrcMetadataLookup@LOOKUP_NAME == 'PanelPricing',",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> LookupPanelName",
+                "",
+                "// Step 2: Look up price from panel name",
+                "LookupPanelName derive(",
+                "    PanelName = SrcMetadataLookup@TEXT",
+                ") ~> DerivePanelName",
+                "",
+                "// Self-join metadata to get price by panel name",
+                "DerivePanelName, SrcMetadataLookup join(",
+                "    PanelName == SrcMetadataLookup@VALUE",
+                "    && SrcMetadataLookup@LOOKUP_NAME == 'PanelPricing',",
+                "    joinType: 'left',",
+                "    matchType: 'exact'",
+                ") ~> LookupPanelPrice",
+                "",
+                "LookupPanelPrice derive(",
+                "    Price = toDecimal(SrcMetadataLookup@TEXT, 8, 2),",
+                "    PriceListVersion = toInteger(null()),",
+                "    PricingMethod = 'PANEL'",
+                ") ~> DerivePanelPrice",
+                "",
+                "// --- Union panel + non-panel ---",
+                "DeriveNonPanelPrice, DerivePanelPrice union(byName: true) ~> UnionPricingPaths",
+                "",
+                "// --- Step 2i: Aggregate by ORDNO, COMPNAME ---",
+                "UnionPricingPaths aggregate(",
+                "    groupBy(ORDNO, COMPNAME),",
+                "    BirthDate = min(BIRTH_DATE),",
+                "    ClientSampleId = min(CLIENT_SAMPLE_ID),",
+                "    DateCollected = min(DATE_COLLECTED),",
+                "    ExternalId = min(SrcCentralReceiving@EXTERNAL_ID),",
+                "    FirstName = min(FIRST_NAME),",
+                "    LastName = min(LAST_NAME),",
+                "    SpecSource = min(SPEC_SOURCE),",
+                "    DateEnter = max(DATEENTER),",
+                "    SourceTestCode = min(SourceTestCode),",
+                "    ResolvedTestCode = min(ResolvedTestCode),",
+                "    IsPanel = min(IsPanel),",
+                "    TestGroupName = min(SrcFolders@TESTGROUPNAME),",
+                "    Analyte = min(ANALYTE),",
+                "    Final = min(FINAL),",
+                "    NumRes = min(NUMRES),",
+                "    RN2 = min(RN2),",
+                "    CancelStatus = min(CancelStatus),",
+                "    HasPendingResults = max(HasPendingResults),",
+                "    Price = min(Price),",
+                "    PriceListId = min(SrcRasClients@PRICELISTID),",
+                "    PriceListVersion = min(PriceListVersion),",
+                "    PricingMethod = min(PricingMethod),",
+                "    Category = min(CATEGORY),",
+                "    State = min(SrcRasClients@STATE),",
+                "    City = min(CITY),",
+                "    Zip = min(ZIP)",
+                ") ~> AggregateByOrdnoCompName",
+                "",
+                "// --- Add ETL metadata ---",
+                "AggregateByOrdnoCompName derive(",
+                "    ETL_LoadDate = currentTimestamp()",
+                ") ~> AddETLLoadDate",
+                "",
+                "// --- Derive partition year ---",
+                "AddETLLoadDate derive(",
+                "    year = year(DateEnter)",
+                ") ~> DerivePartitionYear",
+                "",
+                "// --- Sink to gold zone ---",
+                "// Partitions by year(DateEnter). The master pipeline deletes the",
+                "// target year=YYYY/ folders before this runs, so we get a clean",
+                "// overwrite of just the rolling window partitions. Historical",
+                "// partitions (year <= currentYear-2) are never touched.",
+                "DerivePartitionYear sink(",
+                "    allowSchemaDrift: false,",
+                "    validateSchema: true,",
+                "    format: 'parquet',",
+                "    partitionBy('key', 0, year),",
+                "    umask: 0022,",
+                "    truncate: false,",
+                "    fileSystem: 'gold',",
+                "    folderPath: 'rwp/fact_results_with_pricing'",
+                ") ~> SinkGoldParquet"
+            ]
+        }
+    }
+}
