@@ -6,7 +6,8 @@
 //   az deployment sub create \
 //     --location centralus \
 //     --template-file main.bicep \
-//     --parameters main.bicepparam
+//     --parameters main.bicepparam \
+//     --parameters sqlAdministratorLoginPassword='<secure-password>'
 // =============================================================================
 
 targetScope = 'subscription'
@@ -22,23 +23,9 @@ param coreResourceGroup string = 'MVD-Core-rg'
 @description('RWP project resource group')
 param rwpResourceGroup string = 'rg-rwp-cus-001'
 
-@description('Name of existing Synapse workspace in MVD-Core-rg')
-param synapseWorkspaceName string
-
-@description('Name of existing ADF in MVD-Core-rg')
-param adfName string
-
-@description('Resource ID of existing Synapse workspace')
-param synapseWorkspaceId string
-
-@description('Resource ID of existing ADF')
-param adfId string
-
-@description('Managed identity principal ID of existing ADF')
-param adfPrincipalId string = ''
-
-@description('Managed identity principal ID of existing Synapse')
-param synapsePrincipalId string = ''
+@description('SQL administrator password for Synapse Serverless')
+@secure()
+param sqlAdministratorLoginPassword string
 
 // --- Resource Groups --------------------------------------------------------
 
@@ -55,7 +42,7 @@ resource rgRwp 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 // CORE RESOURCE GROUP DEPLOYMENTS
 // =============================================================================
 
-// --- 1. Networking (VNet, Subnets, NSGs, DNS Zones) -------------------------
+// --- 1. Networking (existing VNet + new subnets + DNS zones) -----------------
 
 module networking 'modules/core-networking.bicep' = {
   name: 'deploy-core-networking'
@@ -65,7 +52,7 @@ module networking 'modules/core-networking.bicep' = {
   }
 }
 
-// --- 2. Security (Key Vault, Log Analytics) ---------------------------------
+// --- 2. Security (existing KV + Log Analytics, add CMK key) -----------------
 
 module security 'modules/core-security.bicep' = {
   name: 'deploy-core-security'
@@ -89,27 +76,47 @@ module adls 'modules/adls.bicep' = {
     logAnalyticsId: security.outputs.logAnalyticsId
     dnsZoneBlobId: networking.outputs.dnsZoneIds.blob
     dnsZoneDfsId: networking.outputs.dnsZoneIds.dfs
-    adfPrincipalId: adfPrincipalId
-    synapsePrincipalId: synapsePrincipalId
-    // functionAppPrincipalId wired up after RWP module deploys (see below)
   }
 }
 
-// --- 4. Security Hardening (Synapse + ADF private endpoints, diagnostics) ---
+// --- 4. Synapse Serverless Workspace ----------------------------------------
+
+module synapse 'modules/synapse.bicep' = {
+  name: 'deploy-synapse'
+  scope: rgCore
+  params: {
+    location: location
+    defaultDataLakeAccountName: adls.outputs.storageAccountName
+    sqlAdministratorLoginPassword: sqlAdministratorLoginPassword
+    logAnalyticsId: security.outputs.logAnalyticsId
+  }
+}
+
+// --- 5. Azure Data Factory --------------------------------------------------
+
+module adf 'modules/adf.bicep' = {
+  name: 'deploy-adf'
+  scope: rgCore
+  params: {
+    location: location
+    logAnalyticsId: security.outputs.logAnalyticsId
+  }
+}
+
+// --- 6. Security Hardening (private endpoints + alerts for Synapse & ADF) ---
 
 module hardening 'modules/security-hardening.bicep' = {
   name: 'deploy-security-hardening'
   scope: rgCore
   params: {
     location: location
-    logAnalyticsId: security.outputs.logAnalyticsId
     snetPrivateEndpointsId: networking.outputs.snetPrivateEndpointsId
     dnsZoneSqlId: networking.outputs.dnsZoneIds.sql
     dnsZoneAdfId: networking.outputs.dnsZoneIds.adf
-    synapseWorkspaceId: synapseWorkspaceId
-    synapseWorkspaceName: synapseWorkspaceName
-    adfId: adfId
-    adfName: adfName
+    synapseWorkspaceId: synapse.outputs.synapseWorkspaceId
+    synapseWorkspaceName: synapse.outputs.synapseWorkspaceName
+    adfId: adf.outputs.adfId
+    adfName: adf.outputs.adfName
   }
 }
 
@@ -117,7 +124,7 @@ module hardening 'modules/security-hardening.bicep' = {
 // RWP RESOURCE GROUP DEPLOYMENT
 // =============================================================================
 
-// --- 5. Function App --------------------------------------------------------
+// --- 7. Function App --------------------------------------------------------
 
 module rwpApp 'modules/rwp-function-app.bicep' = {
   name: 'deploy-rwp-function-app'
@@ -126,24 +133,49 @@ module rwpApp 'modules/rwp-function-app.bicep' = {
     location: location
     logAnalyticsId: security.outputs.logAnalyticsId
     snetFunctionsId: networking.outputs.snetFunctionsId
-    synapseEndpoint: '${synapseWorkspaceName}-ondemand.sql.azuresynapse.net'
+    synapseEndpoint: synapse.outputs.synapseEndpoint
   }
 }
 
 // =============================================================================
-// POST-DEPLOYMENT: Grant Function App RBAC on ADLS
+// POST-DEPLOYMENT: RBAC Assignments on ADLS
 // =============================================================================
+// Standalone modules -- each only creates a single role assignment.
+// Safe to run repeatedly (idempotent via deterministic guid()).
 
-// Standalone RBAC module -- only creates the role assignment, doesn't
-// re-deploy the entire ADLS module. Safe to run repeatedly (idempotent).
+var storageBlobDataContributor = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+var storageBlobDataReader = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+
+// Synapse needs Contributor to write to its default filesystem
+module synapseAdlsRbac 'modules/rbac-assignment.bicep' = {
+  name: 'deploy-synapse-adls-rbac'
+  scope: rgCore
+  params: {
+    storageAccountName: adls.outputs.storageAccountName
+    principalId: synapse.outputs.synapsePrincipalId
+    roleDefinitionId: storageBlobDataContributor
+  }
+}
+
+// ADF needs Contributor to read/write staging and gold zones
+module adfAdlsRbac 'modules/rbac-assignment.bicep' = {
+  name: 'deploy-adf-adls-rbac'
+  scope: rgCore
+  params: {
+    storageAccountName: adls.outputs.storageAccountName
+    principalId: adf.outputs.adfPrincipalId
+    roleDefinitionId: storageBlobDataContributor
+  }
+}
+
+// Function App needs Reader to query via Synapse external tables
 module funcAdlsRbac 'modules/rbac-assignment.bicep' = {
   name: 'deploy-func-adls-rbac'
   scope: rgCore
-  dependsOn: [ adls, rwpApp ]
   params: {
     storageAccountName: adls.outputs.storageAccountName
     principalId: rwpApp.outputs.functionAppPrincipalId
-    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1' // Storage Blob Data Reader
+    roleDefinitionId: storageBlobDataReader
   }
 }
 
@@ -155,6 +187,9 @@ output functionAppHostName string = rwpApp.outputs.functionAppDefaultHostName
 output functionAppName string = rwpApp.outputs.functionAppName
 output functionAppPrincipalId string = rwpApp.outputs.functionAppPrincipalId
 output adlsStorageAccountName string = adls.outputs.storageAccountName
+output synapseWorkspaceName string = synapse.outputs.synapseWorkspaceName
+output synapseEndpoint string = synapse.outputs.synapseEndpoint
+output adfName string = adf.outputs.adfName
 output logAnalyticsName string = security.outputs.logAnalyticsName
 output keyVaultName string = security.outputs.keyVaultName
 output vnetName string = networking.outputs.vnetName

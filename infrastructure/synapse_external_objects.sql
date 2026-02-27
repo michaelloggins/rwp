@@ -24,12 +24,11 @@ END
 GO
 
 -- 3. External data source pointing to the ADLS Gen2 gold container
---    Replace <storage_account> with your actual storage account name.
 IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'adls_datasource')
 BEGIN
     CREATE EXTERNAL DATA SOURCE adls_datasource
     WITH (
-        LOCATION = 'abfss://gold@<storage_account>.dfs.core.windows.net',
+        LOCATION = 'abfss://gold@mvdcoredatalake.dfs.core.windows.net',
         CREDENTIAL = adls_managed_identity
     );
 END

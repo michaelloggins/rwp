@@ -1,26 +1,25 @@
 // =============================================================================
-// Security Hardening: Private endpoints + diagnostics for existing
-// Synapse and ADF resources, plus monitoring alerts.
+// Security Hardening: Private endpoints + monitoring alerts for Synapse and ADF
 // Deployed to: MVD-Core-rg
+//
+// Note: Diagnostic settings for Synapse and ADF are co-located in their
+// respective modules (synapse.bicep, adf.bicep). This module handles only
+// private endpoints and metric alerts.
 // =============================================================================
 
 param location string
-param logAnalyticsId string
 param snetPrivateEndpointsId string
 param dnsZoneSqlId string
 param dnsZoneAdfId string
 
-// Existing resource IDs (these resources are already deployed)
 param synapseWorkspaceId string
 param synapseWorkspaceName string
 param adfId string
 param adfName string
 
 // =============================================================================
-// SYNAPSE
+// SYNAPSE PRIVATE ENDPOINT
 // =============================================================================
-
-// --- Private Endpoint (SqlOnDemand / Serverless) ---
 
 resource synapsePe 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-${synapseWorkspaceName}-sql'
@@ -52,33 +51,9 @@ resource synapsePeDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2
   }
 }
 
-// --- Synapse Diagnostics ---
-
-resource synapseDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'diag-${synapseWorkspaceName}'
-  scope: synapseWorkspace
-  properties: {
-    workspaceId: logAnalyticsId
-    logs: [
-      { categoryGroup: 'allLogs', enabled: true }
-      { categoryGroup: 'audit', enabled: true }
-    ]
-    metrics: [
-      { category: 'AllMetrics', enabled: true }
-    ]
-  }
-}
-
-// Reference existing Synapse for diagnostic scope
-resource synapseWorkspace 'Microsoft.Synapse/workspaces@2021-06-01' existing = {
-  name: synapseWorkspaceName
-}
-
 // =============================================================================
-// ADF
+// ADF PRIVATE ENDPOINT
 // =============================================================================
-
-// --- Private Endpoint ---
 
 resource adfPe 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   name: 'pe-${adfName}-df'
@@ -110,31 +85,9 @@ resource adfPeDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-
   }
 }
 
-// --- ADF Diagnostics ---
-
-resource adfResource 'Microsoft.DataFactory/factories@2018-06-01' existing = {
-  name: adfName
-}
-
-resource adfDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: 'diag-${adfName}'
-  scope: adfResource
-  properties: {
-    workspaceId: logAnalyticsId
-    logs: [
-      { categoryGroup: 'allLogs', enabled: true }
-    ]
-    metrics: [
-      { category: 'AllMetrics', enabled: true }
-    ]
-  }
-}
-
 // =============================================================================
 // MONITORING ALERTS
 // =============================================================================
-
-// --- ADF Pipeline Failure Alert ---
 
 resource alertAdfFailure 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-adf-pipeline-failure'
@@ -162,8 +115,6 @@ resource alertAdfFailure 'Microsoft.Insights/metricAlerts@2018-03-01' = {
     description: 'ADF pipeline run failed'
   }
 }
-
-// --- Synapse Query Failure Alert ---
 
 resource alertSynapseFailure 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-synapse-query-failure'

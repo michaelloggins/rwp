@@ -1,28 +1,31 @@
 // =============================================================================
-// Core Security: Key Vault, Log Analytics Workspace
+// Core Security: Reference existing Key Vault + Log Analytics, add CMK key
 // Deployed to: MVD-Core-rg
+//
+// References existing:
+//   - Key Vault: kv-miravista-core (updates to enable purge protection for CMK)
+//   - Log Analytics: log-miravista-core
+//
+// Creates new:
+//   - CMK encryption key (adls-cmk) in existing Key Vault
+//   - Key Vault private endpoint
 // =============================================================================
 
 param location string
-param keyVaultName string = 'mvd-core-kv'
-param logAnalyticsName string = 'mvd-core-logs'
+param keyVaultName string = 'kv-miravista-core'
+param logAnalyticsName string = 'log-miravista-core'
 param snetPrivateEndpointsId string
 param dnsZoneVaultId string
 
-// --- Log Analytics Workspace ------------------------------------------------
+// --- Reference Existing Log Analytics ----------------------------------------
 
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   name: logAnalyticsName
-  location: location
-  properties: {
-    sku: { name: 'PerGB2018' }
-    retentionInDays: 90
-    publicNetworkAccessForIngestion: 'Enabled'
-    publicNetworkAccessForQuery: 'Enabled'
-  }
 }
 
-// --- Key Vault --------------------------------------------------------------
+// --- Update Existing Key Vault (enable purge protection for CMK) -------------
+// This is an upsert -- preserves existing config, enables purge protection.
+// Purge protection is REQUIRED for CMK encryption on ADLS.
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
@@ -37,11 +40,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enablePurgeProtection: true
     enableSoftDelete: true
     softDeleteRetentionInDays: 90
-    publicNetworkAccess: 'Disabled'
-    networkAcls: {
-      defaultAction: 'Deny'
-      bypass: 'AzureServices'
-    }
+    publicNetworkAccess: 'Enabled' // Matches current state -- tighten later if needed
   }
 }
 
@@ -115,4 +114,3 @@ output keyVaultId string = keyVault.id
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output adlsCmkName string = adlsCmk.name
-output adlsCmkUri string = adlsCmk.properties.keyUriWithVersion

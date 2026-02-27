@@ -4,11 +4,12 @@
 //
 // Idempotency notes:
 // - All resource names are deterministic (no random suffixes)
-// - RBAC assignments use guid() with stable inputs -> same GUID every run
-// - Conditional resources (empty principalId) are skipped cleanly
 // - CMK uses a user-assigned managed identity to avoid chicken-and-egg
 //   (system-assigned MI doesn't exist until the storage account is created,
 //    but CMK config needs KV access at creation time)
+//
+// RBAC for ADF, Synapse, and Function App is handled by standalone
+// rbac-assignment modules in main.bicep (avoids circular dependencies).
 // =============================================================================
 
 param location string
@@ -19,11 +20,6 @@ param snetPrivateEndpointsId string
 param logAnalyticsId string
 param dnsZoneBlobId string
 param dnsZoneDfsId string
-
-// Managed identity principal IDs for RBAC (optional -- empty string = skip)
-param adfPrincipalId string = ''
-param synapsePrincipalId string = ''
-param functionAppPrincipalId string = ''
 
 // --- User-Assigned Managed Identity (for CMK access to Key Vault) -----------
 // Created first so it can be granted KV access before the storage account
@@ -112,6 +108,14 @@ resource stagingContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
 resource goldContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'gold'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource synapseContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'synapse'
   properties: {
     publicAccess: 'None'
   }
@@ -232,42 +236,6 @@ resource atp 'Microsoft.Security/advancedThreatProtectionSettings@2019-01-01' = 
   scope: storageAccount
   properties: {
     isEnabled: true
-  }
-}
-
-// --- RBAC Assignments -------------------------------------------------------
-// guid() is deterministic: same inputs = same GUID = no duplicates on re-run
-
-var storageBlobDataContributor = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-var storageBlobDataReader = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-
-resource adfRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(adfPrincipalId)) {
-  name: guid(storageAccount.id, adfPrincipalId, storageBlobDataContributor)
-  scope: storageAccount
-  properties: {
-    principalId: adfPrincipalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributor)
-  }
-}
-
-resource synapseRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(synapsePrincipalId)) {
-  name: guid(storageAccount.id, synapsePrincipalId, storageBlobDataReader)
-  scope: storageAccount
-  properties: {
-    principalId: synapsePrincipalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataReader)
-  }
-}
-
-resource funcRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(functionAppPrincipalId)) {
-  name: guid(storageAccount.id, functionAppPrincipalId, storageBlobDataReader)
-  scope: storageAccount
-  properties: {
-    principalId: functionAppPrincipalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataReader)
   }
 }
 
