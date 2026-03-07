@@ -4,40 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Results With Pricing — MiraVista Diagnostics</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230e7490'/><text x='16' y='23' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='20' fill='white'>M</text></svg>">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/favicon-192.png">
+    <link rel="apple-touch-icon" href="/images/favicon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --navy-900: #0c1d35;
-            --navy-800: #0f2942;
-            --navy-700: #1a365d;
-            --navy-600: #234876;
-            --teal-600: #0e7490;
-            --teal-500: #0891b2;
-            --teal-400: #22d3ee;
-            --slate-50: #f8fafc;
-            --slate-100: #f1f5f9;
-            --slate-200: #e2e8f0;
-            --slate-300: #cbd5e1;
-            --slate-400: #94a3b8;
-            --slate-500: #64748b;
-            --slate-600: #475569;
-            --slate-700: #334155;
-            --slate-800: #1e293b;
-            --emerald-500: #10b981;
-            --emerald-700: #047857;
+            --mv-green-900: #1a4f16;
+            --mv-green-800: #1e5c19;
+            --mv-green-700: #286f1f;
+            --mv-green-600: #2d7d22;
+            --mv-green-500: #85b43b;
+            --mv-green-400: #9ac554;
+            --mv-green-300: #b3d676;
+            --mv-green-200: #d4e9ab;
+            --mv-green-100: #eaf4d5;
+            --mv-green-50: #f5faea;
+            --mv-charcoal: #404041;
+            --mv-dark: #333333;
+            --mv-body: #555555;
+            --mv-offwhite: #f7f5e7;
+            --slate-50: #f8faf7;
+            --slate-100: #f1f5ee;
+            --slate-200: #e2e8d8;
+            --slate-300: #c8d4b8;
+            --slate-400: #8a9a72;
+            --slate-500: #6b7a55;
+            --slate-600: #4d5a3a;
+            --white: #ffffff;
             --red-500: #ef4444;
             --red-600: #dc2626;
-            --white: #ffffff;
-            --shadow-card: 0 1px 3px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.06);
-            --shadow-lg: 0 8px 30px rgba(15,23,42,0.12);
+            --emerald-500: #10b981;
+            --emerald-700: #047857;
+            --shadow-card: 0 1px 3px rgba(40,111,31,0.04), 0 4px 20px rgba(40,111,31,0.07);
+            --shadow-lg: 0 8px 32px rgba(40,111,31,0.12);
+            --shadow-glow: 0 0 40px rgba(133,180,59,0.15);
             --radius-sm: 6px;
             --radius-md: 10px;
-            --radius-lg: 14px;
-            --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-            --font-body: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --radius-lg: 16px;
+            --font-heading: 'Roboto Condensed', 'Segoe UI', sans-serif;
+            --font-body: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
             --ease: cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -46,7 +54,7 @@
         body {
             font-family: var(--font-body);
             background: var(--slate-50);
-            color: var(--slate-800);
+            color: var(--mv-charcoal);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -57,67 +65,66 @@
             content: '';
             position: fixed;
             inset: 0;
-            background:
-                radial-gradient(ellipse at 20% 50%, rgba(8,145,178,0.04), transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(15,41,66,0.03), transparent 40%),
-                radial-gradient(ellipse at 60% 80%, rgba(8,145,178,0.02), transparent 40%);
+            background: url('/images/white.jpg') center / cover no-repeat;
+            opacity: 0.35;
             pointer-events: none;
             z-index: 0;
         }
 
         /* ---- Accent bar ---- */
         .accent-bar {
-            height: 3px;
-            background: linear-gradient(90deg, var(--navy-800), var(--teal-500), var(--navy-800));
+            height: 4px;
+            background: linear-gradient(90deg, var(--mv-green-700), var(--mv-green-500), var(--mv-green-300), var(--mv-green-500), var(--mv-green-700));
             flex-shrink: 0;
         }
 
         /* ---- Top nav ---- */
         .top-nav {
-            background: var(--navy-900);
-            color: var(--white);
+            background: var(--white);
+            color: var(--mv-charcoal);
             padding: 0 2rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            height: 56px;
+            height: 64px;
             flex-shrink: 0;
             position: relative;
             z-index: 10;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 2px 12px rgba(40,111,31,0.05);
+            border-bottom: 1px solid var(--slate-200);
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.875rem;
         }
 
-        .brand-icon {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--teal-500), var(--teal-400));
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+        .brand-logo {
+            height: 36px;
+            width: auto;
         }
 
-        .brand-icon svg { width: 18px; height: 18px; color: var(--white); }
+        .brand-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--slate-200);
+        }
 
         .brand-text h1 {
-            font-family: var(--font-display);
-            font-size: 1.2rem;
-            font-weight: 500;
-            letter-spacing: -0.01em;
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
             line-height: 1.2;
+            color: var(--mv-dark);
         }
 
         .brand-text span {
             font-size: 0.6875rem;
-            font-weight: 300;
-            color: var(--slate-400);
-            letter-spacing: 0.06em;
+            font-weight: 500;
+            color: var(--mv-green-500);
+            letter-spacing: 0.08em;
             text-transform: uppercase;
         }
 
@@ -128,21 +135,28 @@
             font-size: 0.8125rem;
         }
 
-        .user-controls .user-name { color: var(--slate-300); font-weight: 400; }
+        .user-controls .user-name {
+            color: var(--mv-body);
+            font-weight: 400;
+        }
 
         .user-controls .sign-out-link {
-            color: var(--teal-400);
+            color: var(--mv-green-700);
             text-decoration: none;
-            font-weight: 500;
-            padding: 0.25rem 0.75rem;
+            font-weight: 600;
+            padding: 0.3rem 0.875rem;
             border-radius: var(--radius-sm);
-            border: 1px solid rgba(34,211,238,0.2);
+            border: 1.5px solid var(--mv-green-200);
+            background: var(--mv-green-50);
             transition: all 0.2s var(--ease);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .user-controls .sign-out-link:hover {
-            background: rgba(34,211,238,0.1);
-            border-color: rgba(34,211,238,0.4);
+            background: var(--mv-green-100);
+            border-color: var(--mv-green-400);
         }
 
         /* ---- Main content ---- */
@@ -164,18 +178,18 @@
         }
 
         .page-header h2 {
-            font-family: var(--font-display);
+            font-family: var(--font-heading);
             font-size: 2rem;
-            font-weight: 500;
-            color: var(--navy-800);
-            letter-spacing: -0.02em;
+            font-weight: 600;
+            color: var(--mv-green-700);
+            letter-spacing: -0.01em;
             margin-bottom: 0.375rem;
         }
 
         .page-header p {
             font-size: 0.9375rem;
-            color: var(--slate-500);
-            font-weight: 300;
+            color: var(--mv-body);
+            font-weight: 400;
         }
 
         /* ---- Card ---- */
@@ -196,19 +210,20 @@
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--navy-700), var(--teal-500));
+            height: 4px;
+            background: linear-gradient(90deg, var(--mv-green-700), var(--mv-green-500), var(--mv-green-300));
         }
 
         /* ---- Form ---- */
         .form-section { margin-bottom: 1.5rem; }
 
         .form-section-label {
-            font-size: 0.6875rem;
+            font-family: var(--font-heading);
+            font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: var(--slate-400);
+            color: var(--mv-green-700);
             margin-bottom: 0.75rem;
             display: flex;
             align-items: center;
@@ -219,10 +234,10 @@
             content: '';
             flex: 1;
             height: 1px;
-            background: var(--slate-200);
+            background: linear-gradient(90deg, var(--mv-green-200), transparent);
         }
 
-        .form-section-label svg { width: 14px; height: 14px; color: var(--slate-400); }
+        .form-section-label svg { width: 14px; height: 14px; color: var(--mv-green-500); }
 
         .form-row { display: flex; gap: 0.75rem; }
 
@@ -230,22 +245,22 @@
 
         .form-group label {
             display: block;
-            font-weight: 500;
+            font-weight: 600;
             font-size: 0.8125rem;
             margin-bottom: 0.375rem;
-            color: var(--slate-600);
+            color: var(--mv-charcoal);
         }
 
         select,
         input[type="date"] {
             width: 100%;
             padding: 0.625rem 0.75rem;
-            border: 1px solid var(--slate-200);
+            border: 1.5px solid var(--slate-200);
             border-radius: var(--radius-sm);
             font-family: var(--font-body);
             font-size: 0.875rem;
             font-weight: 400;
-            color: var(--slate-800);
+            color: var(--mv-charcoal);
             background: var(--white);
             transition: all 0.2s var(--ease);
             appearance: none;
@@ -253,20 +268,20 @@
         }
 
         select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23286f1f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 0.75rem center;
             padding-right: 2.25rem;
         }
 
         select:hover,
-        input[type="date"]:hover { border-color: var(--slate-300); }
+        input[type="date"]:hover { border-color: var(--mv-green-400); }
 
         select:focus,
         input[type="date"]:focus {
             outline: none;
-            border-color: var(--teal-500);
-            box-shadow: 0 0 0 3px rgba(8,145,178,0.12);
+            border-color: var(--mv-green-500);
+            box-shadow: 0 0 0 3px rgba(133,180,59,0.18);
         }
 
         /* ---- Date mode toggle ---- */
@@ -275,8 +290,8 @@
             align-items: center;
             gap: 0.25rem;
             font-size: 0.75rem;
-            font-weight: 500;
-            color: var(--teal-600);
+            font-weight: 600;
+            color: var(--mv-green-700);
             cursor: pointer;
             margin-top: -0.25rem;
             margin-bottom: 0.75rem;
@@ -284,7 +299,7 @@
             user-select: none;
         }
 
-        .date-toggle:hover { color: var(--teal-500); }
+        .date-toggle:hover { color: var(--mv-green-500); }
 
         .date-toggle svg { width: 12px; height: 12px; transition: transform 0.2s var(--ease); }
         .date-toggle.open svg { transform: rotate(90deg); }
@@ -305,9 +320,10 @@
             color: var(--white);
             border: none;
             border-radius: var(--radius-md);
-            font-family: var(--font-body);
-            font-size: 0.875rem;
+            font-family: var(--font-heading);
+            font-size: 0.9rem;
             font-weight: 600;
+            letter-spacing: 0.02em;
             cursor: pointer;
             transition: all 0.2s var(--ease);
             display: flex;
@@ -322,23 +338,27 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+            background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 50%);
             pointer-events: none;
         }
 
-        button.primary { background: var(--navy-700); }
+        button.primary {
+            background: linear-gradient(135deg, var(--mv-green-700), var(--mv-green-800));
+        }
         button.primary:hover {
-            background: var(--navy-600);
+            background: linear-gradient(135deg, var(--mv-green-600), var(--mv-green-700));
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(26,54,93,0.3);
+            box-shadow: 0 4px 16px rgba(40,111,31,0.35);
         }
         button.primary:active { transform: translateY(0); }
 
-        button.secondary { background: var(--teal-500); }
+        button.secondary {
+            background: linear-gradient(135deg, var(--mv-green-500), #6fa030);
+        }
         button.secondary:hover {
-            background: var(--teal-600);
+            background: linear-gradient(135deg, var(--mv-green-400), var(--mv-green-500));
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(8,145,178,0.3);
+            box-shadow: 0 4px 16px rgba(133,180,59,0.35);
         }
         button.secondary:active { transform: translateY(0); }
 
@@ -382,16 +402,16 @@
         }
 
         .message.success {
-            background: #ecfdf5;
-            color: var(--emerald-700);
-            border-left-color: var(--emerald-500);
+            background: var(--mv-green-50);
+            color: var(--mv-green-800);
+            border-left-color: var(--mv-green-500);
             display: block;
         }
 
         .message.info {
-            background: #ecfeff;
-            color: var(--teal-600);
-            border-left-color: var(--teal-500);
+            background: var(--mv-green-50);
+            color: var(--mv-green-700);
+            border-left-color: var(--mv-green-400);
             display: block;
         }
 
@@ -405,7 +425,7 @@
             margin-top: 1rem;
             text-align: center;
             width: 100%;
-            max-width: 420px;
+            max-width: 440px;
             position: relative;
             overflow: hidden;
             animation: fadeUp 0.6s ease-out 0.1s both;
@@ -415,35 +435,28 @@
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--navy-700), var(--teal-500), var(--teal-400));
+            height: 5px;
+            background: linear-gradient(90deg, var(--mv-green-700), var(--mv-green-500), var(--mv-green-300));
         }
 
-        .sign-in-icon {
-            width: 56px; height: 56px;
-            background: linear-gradient(135deg, var(--navy-800), var(--navy-600));
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.5rem;
-            box-shadow: 0 4px 12px rgba(15,41,66,0.2);
+        .sign-in-logo {
+            height: 48px;
+            width: auto;
+            margin-bottom: 1.75rem;
         }
-
-        .sign-in-icon svg { width: 24px; height: 24px; color: var(--teal-400); }
 
         .sign-in-card h2 {
-            font-family: var(--font-display);
-            font-size: 1.625rem;
-            font-weight: 500;
-            color: var(--navy-800);
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--mv-green-700);
             margin-bottom: 0.5rem;
         }
 
         .sign-in-card .sign-in-subtitle {
-            color: var(--slate-500);
+            color: var(--mv-body);
             font-size: 0.9375rem;
-            font-weight: 300;
+            font-weight: 400;
             line-height: 1.6;
             margin-bottom: 2rem;
         }
@@ -451,15 +464,31 @@
         .sign-in-card button { width: 100%; }
 
         .sign-in-card .ms-btn {
-            background: var(--navy-700);
+            background: linear-gradient(135deg, var(--mv-green-700), var(--mv-green-800));
             font-size: 0.9375rem;
             padding: 0.875rem 1.25rem;
         }
 
         .sign-in-card .ms-btn:hover {
-            background: var(--navy-600);
+            background: linear-gradient(135deg, var(--mv-green-600), var(--mv-green-700));
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(26,54,93,0.3);
+            box-shadow: 0 6px 24px rgba(40,111,31,0.3);
+        }
+
+        .sign-in-security {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--slate-400);
+        }
+
+        .sign-in-security svg {
+            width: 14px;
+            height: 14px;
+            color: var(--mv-green-400);
         }
 
         /* ---- Footer info (inside card) ---- */
@@ -468,7 +497,7 @@
             font-size: 0.75rem;
             color: var(--slate-400);
             text-align: center;
-            font-weight: 300;
+            font-weight: 400;
         }
 
         .footer-info .dot { margin: 0 0.5rem; opacity: 0.4; }
@@ -491,18 +520,18 @@
         }
 
         .results-header h3 {
-            font-family: var(--font-display);
+            font-family: var(--font-heading);
             font-size: 1.25rem;
-            font-weight: 500;
-            color: var(--navy-800);
+            font-weight: 600;
+            color: var(--mv-green-700);
         }
 
         .results-header .row-count {
             font-size: 0.75rem;
             font-weight: 600;
-            color: var(--teal-600);
-            background: #ecfeff;
-            border: 1px solid #a5f3fc;
+            color: var(--mv-green-700);
+            background: var(--mv-green-50);
+            border: 1px solid var(--mv-green-200);
             padding: 0.25rem 0.75rem;
             border-radius: 999px;
         }
@@ -525,8 +554,9 @@
         thead th {
             position: sticky;
             top: 0;
-            background: var(--navy-900);
-            color: var(--slate-100);
+            background: var(--mv-green-700);
+            color: var(--white);
+            font-family: var(--font-heading);
             font-weight: 600;
             font-size: 0.6875rem;
             text-transform: uppercase;
@@ -534,7 +564,7 @@
             padding: 0.75rem 1rem;
             text-align: left;
             white-space: nowrap;
-            border-bottom: 2px solid var(--teal-500);
+            border-bottom: 3px solid var(--mv-green-500);
             z-index: 1;
         }
 
@@ -543,13 +573,13 @@
             border-bottom: 1px solid var(--slate-100);
             white-space: nowrap;
             font-variant-numeric: tabular-nums;
-            color: var(--slate-700);
+            color: var(--mv-charcoal);
         }
 
         tbody tr { transition: background 0.15s var(--ease); }
-        tbody tr:hover { background: #f0fdfa; }
+        tbody tr:hover { background: var(--mv-green-50); }
         tbody tr:nth-child(even) { background: var(--slate-50); }
-        tbody tr:nth-child(even):hover { background: #f0fdfa; }
+        tbody tr:nth-child(even):hover { background: var(--mv-green-50); }
 
         /* ---- Tab bar for RWP category filtering ---- */
         .tab-bar {
@@ -563,11 +593,11 @@
             flex: 0 0 auto;
             padding: 0.5rem 1rem;
             font-size: 0.8125rem;
-            font-weight: 500;
+            font-weight: 600;
             border-radius: var(--radius-sm);
             background: var(--white);
-            color: var(--slate-600);
-            border: 1px solid var(--slate-200);
+            color: var(--mv-charcoal);
+            border: 1.5px solid var(--slate-200);
             cursor: pointer;
             transition: all 0.2s var(--ease);
         }
@@ -575,31 +605,34 @@
         .tab-bar button::after { display: none; }
 
         .tab-bar button:hover {
-            border-color: var(--teal-500);
-            color: var(--teal-600);
+            border-color: var(--mv-green-500);
+            color: var(--mv-green-700);
             transform: none;
             box-shadow: none;
         }
 
         .tab-bar button.active {
-            background: var(--navy-900);
+            background: var(--mv-green-700);
             color: var(--white);
-            border-color: var(--navy-900);
+            border-color: var(--mv-green-700);
         }
 
         .tab-bar button.active:hover {
-            background: var(--navy-800);
+            background: var(--mv-green-600);
             color: var(--white);
-            border-color: var(--navy-800);
+            border-color: var(--mv-green-600);
         }
 
         /* ---- Site footer ---- */
         .site-footer {
-            padding: 1.5rem 2rem;
-            text-align: center;
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
             font-size: 0.75rem;
             color: var(--slate-400);
-            font-weight: 300;
+            font-weight: 400;
             border-top: 1px solid var(--slate-200);
             background: var(--white);
             flex-shrink: 0;
@@ -607,11 +640,17 @@
             z-index: 1;
         }
 
-        .site-footer strong { font-weight: 500; color: var(--slate-500); }
+        .site-footer img {
+            height: 22px;
+            width: auto;
+            opacity: 0.5;
+        }
+
+        .site-footer strong { font-weight: 600; color: var(--mv-charcoal); }
 
         /* ---- Animations ---- */
         @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(12px); }
+            from { opacity: 0; transform: translateY(16px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -624,6 +663,7 @@
                 gap: 0.5rem;
                 text-align: center;
             }
+            .brand-divider { display: none; }
             .main-content { padding: 1.5rem 1rem 2rem; }
             .card { padding: 1.5rem; }
             .form-row { flex-direction: column; gap: 0; }
@@ -637,15 +677,11 @@
 
     <nav class="top-nav">
         <div class="brand">
-            <div class="brand-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/>
-                    <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/>
-                </svg>
-            </div>
+            <img src="/images/miravista_logo_transparent.png" alt="MiraVista Diagnostics" class="brand-logo">
+            <div class="brand-divider"></div>
             <div class="brand-text">
                 <h1>Results With Pricing</h1>
-                <span>MiraVista Diagnostics</span>
+                <span>Data Export Portal</span>
             </div>
         </div>
 
@@ -658,11 +694,7 @@
     <main class="main-content">
         <!-- Sign-in prompt (shown when NOT authenticated) -->
         <div class="sign-in-card" id="signInCard" style="display:none">
-            <div class="sign-in-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-            </div>
+            <img src="/images/miravista_logo_transparent.png" alt="MiraVista Diagnostics" class="sign-in-logo">
             <h2>Authentication Required</h2>
             <p class="sign-in-subtitle">Sign in with your MiraVista Entra&nbsp;ID account to access Results&nbsp;With&nbsp;Pricing data.</p>
             <button class="ms-btn primary" onclick="signIn()">
@@ -671,6 +703,12 @@
                 </svg>
                 Sign in with Microsoft
             </button>
+            <div class="sign-in-security">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                Secured with Azure Active Directory
+            </div>
         </div>
 
         <!-- Main form (shown when authenticated) -->
@@ -780,7 +818,8 @@
     </main>
 
     <footer class="site-footer">
-        <strong>MiraVista Diagnostics</strong> &middot; Results With Pricing &middot; Powered by Azure Synapse Analytics
+        <img src="/images/miravista_logo_transparent.png" alt="MiraVista Diagnostics">
+        <span>Results With Pricing &middot; Powered by Azure Synapse Analytics</span>
     </footer>
 
     <script>
