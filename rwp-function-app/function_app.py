@@ -77,6 +77,8 @@ _MIME_TYPES = {
     ".json": "application/json",
     ".png": "image/png",
     ".ico": "image/x-icon",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
 }
 
 
@@ -634,6 +636,21 @@ async def root_redirect(req: func.HttpRequest) -> func.HttpResponse:
 async def download_page(req: func.HttpRequest) -> func.HttpResponse:
     """Serve the web download page."""
     return _serve_static_file(_STATIC_DIR / "index.html")
+
+
+@app.route(route="favicon.ico", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+async def favicon(req: func.HttpRequest) -> func.HttpResponse:
+    """Serve favicon."""
+    return _serve_static_file(_STATIC_DIR / "favicon.ico")
+
+
+@app.route(route="images/{*filepath}", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+async def static_images(req: func.HttpRequest) -> func.HttpResponse:
+    """Serve static image files."""
+    filepath = req.route_params.get("filepath", "")
+    if not filepath:
+        return func.HttpResponse("Not found", status_code=404)
+    return _serve_static_file(_STATIC_DIR / "images" / filepath)
 
 
 @app.route(route="addin/{*filepath}", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
