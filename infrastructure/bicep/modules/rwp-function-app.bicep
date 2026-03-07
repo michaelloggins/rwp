@@ -14,6 +14,18 @@ param logAnalyticsId string
 param snetFunctionsId string
 param synapseEndpoint string = ''
 
+// Entra ID (Azure AD) App Registration — create manually, then set these params
+@description('Entra ID App Registration client ID for EasyAuth')
+param entraClientId string = ''
+@description('Entra ID tenant ID')
+param entraTenantId string = ''
+
+// Security group Object IDs for report-level authorization
+@description('Object ID of sg-rwp-ePHI-Users security group (full RWP with PII)')
+param ephiGroupId string = ''
+@description('Object ID of sg-rwp-CFO-Users security group (RWPCFO without PII)')
+param cfoGroupId string = ''
+
 // --- Function App Storage Account -------------------------------------------
 
 resource funcStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
@@ -77,6 +89,13 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
       vnetRouteAllEnabled: true
+      cors: {
+        allowedOrigins: [
+          'https://${functionAppName}.azurewebsites.net'
+          'https://localhost:3000'
+        ]
+        supportCredentials: true
+      }
       appSettings: [
         { name: 'AzureWebJobsStorage', value: 'DefaultEndpointsProtocol=https;AccountName=${funcStorage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${funcStorage.listKeys().keys[0].value}' }
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
@@ -87,7 +106,52 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'WEBSITE_VNET_ROUTE_ALL', value: '1' }
         { name: 'SYNAPSE_ENDPOINT', value: synapseEndpoint }
         { name: 'SYNAPSE_DATABASE', value: 'rwp_analytics' }
+        { name: 'RWP_EPHI_GROUP_ID', value: ephiGroupId }
+        { name: 'RWP_CFO_GROUP_ID', value: cfoGroupId }
       ]
+    }
+  }
+}
+
+// --- Entra ID (EasyAuth) Authentication ------------------------------------
+
+resource authSettings 'Microsoft.Web/sites/config@2023-12-01' = if (!empty(entraClientId)) {
+  name: 'authsettingsV2'
+  parent: functionApp
+  properties: {
+    globalValidation: {
+      requireAuthentication: true
+      unauthenticatedClientAction: 'RedirectToLoginPage'
+    }
+    identityProviders: {
+      azureActiveDirectory: {
+        enabled: true
+        registration: {
+          clientId: entraClientId
+          openIdIssuer: 'https://sts.windows.net/${entraTenantId}/v2.0'
+        }
+        validation: {
+          allowedAudiences: [
+            'api://${entraClientId}'
+          ]
+        }
+      }
+    }
+    login: {
+      tokenStore: {
+        enabled: true
+      }
+      allowedExternalRedirectUrls: [
+        'https://${functionAppName}.azurewebsites.net'
+        'https://localhost:3000'
+      ]
+      cookieExpiration: {
+        convention: 'FixedTime'
+        timeToExpiration: '08:00:00'
+      }
+      nonce: {
+        validateNonce: true
+      }
     }
   }
 }

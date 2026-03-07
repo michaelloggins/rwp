@@ -21,6 +21,9 @@ param logAnalyticsId string
 param dnsZoneBlobId string
 param dnsZoneDfsId string
 
+@description('Optional list of public IP addresses (or CIDR ranges) to allow through the storage firewall')
+param allowedIpAddresses array = []
+
 // --- User-Assigned Managed Identity (for CMK access to Key Vault) -----------
 // Created first so it can be granted KV access before the storage account
 // tries to use the CMK key.
@@ -30,10 +33,15 @@ resource adlsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-
   location: location
 }
 
-// Grant the identity access to the Key Vault encryption key
+// Reference the Key Vault to scope the RBAC assignment directly to it
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+
+// Grant the identity access to the Key Vault encryption key (scoped to KV, not RG)
 resource kvCryptoRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(adlsIdentity.id, keyVaultName, 'Key Vault Crypto Service Encryption User')
-  scope: resourceGroup()
+  name: guid(keyVault.id, adlsIdentity.id, 'Key Vault Crypto Service Encryption User')
+  scope: keyVault
   properties: {
     principalId: adlsIdentity.properties.principalId
     principalType: 'ServicePrincipal'
@@ -65,6 +73,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     networkAcls: {
       defaultAction: 'Deny'
       bypass: 'AzureServices'
+      ipRules: [for ip in allowedIpAddresses: { value: ip, action: 'Allow' }]
     }
     encryption: {
       identity: {
@@ -142,6 +151,23 @@ resource lifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolicies@2
             filters: {
               blobTypes: [ 'blockBlob' ]
               prefixMatch: [ 'staging/' ]
+            }
+          }
+        }
+        {
+          name: 'tier-gold-data'
+          enabled: true
+          type: 'Lifecycle'
+          definition: {
+            actions: {
+              baseBlob: {
+                tierToCool: { daysAfterModificationGreaterThan: 90 }
+                tierToArchive: { daysAfterModificationGreaterThan: 365 }
+              }
+            }
+            filters: {
+              blobTypes: [ 'blockBlob' ]
+              prefixMatch: [ 'gold/' ]
             }
           }
         }
@@ -226,16 +252,6 @@ resource blobDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-previ
     metrics: [
       { category: 'Transaction', enabled: true }
     ]
-  }
-}
-
-// --- Advanced Threat Protection ---------------------------------------------
-
-resource atp 'Microsoft.Security/advancedThreatProtectionSettings@2019-01-01' = {
-  name: 'current'
-  scope: storageAccount
-  properties: {
-    isEnabled: true
   }
 }
 

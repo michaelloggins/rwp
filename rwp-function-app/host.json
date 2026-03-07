@@ -16,9 +16,19 @@
     },
     "extensions": {
         "http": {
-            "routePrefix": "api",
+            "routePrefix": "",
             "maxOutstandingRequests": 100,
-            "maxConcurrentRequests": 50
+            "maxConcurrentRequests": 50,
+            "dynamicThrottlesEnabled": false
+        }
+    },
+    "Host": {
+        "CORS": {
+            "AllowedOrigins": [
+                "https://func-rwp-cus-001.azurewebsites.net",
+                "https://localhost:3000"
+            ],
+            "SupportCredentials": true
         }
     },
     "functionTimeout": "00:05:00"

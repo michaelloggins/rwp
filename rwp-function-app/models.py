@@ -42,11 +42,18 @@ class RWPRequest:
         if cal_end < cal_date:
             raise ValueError("CalEnd must be >= CalDate")
 
+        max_days = 366
+        if (cal_end - cal_date).days > max_days:
+            raise ValueError(
+                f"Date range cannot exceed {max_days} days. "
+                f"Requested range: {(cal_end - cal_date).days} days."
+            )
+
         if report_type not in ("RWP", "RWPCFO"):
             raise ValueError("ReportType must be 'RWP' or 'RWPCFO'")
 
-        if output_format not in ("json", "csv"):
-            raise ValueError("Format must be 'json' or 'csv'")
+        if output_format not in ("json", "csv", "xlsx"):
+            raise ValueError("Format must be 'json', 'csv', or 'xlsx'")
 
         return cls(
             cal_date=cal_date,

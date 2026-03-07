@@ -162,9 +162,30 @@ def _check_report_authorization(
     return None
 
 
+def _require_authenticated(req: func.HttpRequest) -> func.HttpResponse | None:
+    """Defense-in-depth: reject requests with no EasyAuth principal.
+
+    Even though EasyAuth should block unauthenticated requests at the
+    platform level, this guard protects against misconfiguration
+    (e.g. EasyAuth disabled or entraClientId not set).
+    """
+    if not req.headers.get("X-MS-CLIENT-PRINCIPAL"):
+        return func.HttpResponse(
+            json.dumps({"error": "Authentication required"}),
+            status_code=401,
+            mimetype="application/json",
+        )
+    return None
+
+
 @app.route(route="api/results-with-pricing", methods=["GET"])
 async def results_with_pricing(req: func.HttpRequest) -> func.HttpResponse:
     """HTTP trigger: query RWP or RWPCFO view by date range."""
+
+    # Defense-in-depth: require authentication even if EasyAuth is misconfigured
+    auth_err = _require_authenticated(req)
+    if auth_err:
+        return auth_err
 
     # Parse and validate parameters
     try:
@@ -549,6 +570,12 @@ def _build_xlsx_response(
 @app.route(route="api/audit-log", methods=["GET"])
 async def audit_log(req: func.HttpRequest) -> func.HttpResponse:
     """HTTP trigger: query the audit log for a given month."""
+
+    # Defense-in-depth: require authentication even if EasyAuth is misconfigured
+    auth_err = _require_authenticated(req)
+    if auth_err:
+        return auth_err
+
     settings = get_settings()
 
     # Restrict to ePHI group members
@@ -597,6 +624,12 @@ async def audit_log(req: func.HttpRequest) -> func.HttpResponse:
 # --- Static file serving routes ----------------------------------------------
 
 
+@app.route(route="", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+async def root_redirect(req: func.HttpRequest) -> func.HttpResponse:
+    """Redirect root URL to /download."""
+    return func.HttpResponse(status_code=301, headers={"Location": "/download"})
+
+
 @app.route(route="download", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 async def download_page(req: func.HttpRequest) -> func.HttpResponse:
     """Serve the web download page."""
@@ -618,6 +651,10 @@ def _serve_static_file(file_path: Path) -> func.HttpResponse:
     try:
         file_path = file_path.resolve()
     except (ValueError, OSError):
+        return func.HttpResponse("Not found", status_code=404)
+
+    # Verify resolved path is within the allowed static directories
+    if not (file_path.is_relative_to(_STATIC_DIR)):
         return func.HttpResponse("Not found", status_code=404)
 
     if not file_path.is_file():

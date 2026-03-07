@@ -25,3 +25,7 @@ Thumbs.db
 *.pfx
 *.pem
 credentials.json
+.token
+
+# Node
+node_modules/

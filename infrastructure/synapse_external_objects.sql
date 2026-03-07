@@ -13,6 +13,16 @@ GO
 USE rwp_analytics;
 GO
 
+-- 1b. Create a database master key (required for database-scoped credentials)
+-- NOTE: Replace $(MASTER_KEY_PASSWORD) with a strong password at deploy time.
+-- Do NOT commit the actual password to source control.
+-- Example: sqlcmd -v MASTER_KEY_PASSWORD="<your-secure-password>" -i synapse_external_objects.sql
+IF NOT EXISTS (SELECT * FROM sys.symmetric_keys WHERE name = '##MS_DatabaseMasterKey##')
+BEGIN
+    CREATE MASTER KEY ENCRYPTION BY PASSWORD = '$(MASTER_KEY_PASSWORD)';
+END
+GO
+
 -- 2. Database-scoped credential using managed identity
 --    The Synapse workspace's managed identity must have
 --    "Storage Blob Data Reader" on the ADLS Gen2 account.
@@ -29,6 +39,18 @@ BEGIN
     CREATE EXTERNAL DATA SOURCE adls_datasource
     WITH (
         LOCATION = 'abfss://gold@mvdcoredatalake.dfs.core.windows.net',
+        CREDENTIAL = adls_managed_identity
+    );
+END
+GO
+
+-- 3b. External data source pointing to the ADLS Gen2 staging container
+--     Used for shared StarLIMS staging tables and RWP-specific staging tables
+IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'adls_staging')
+BEGIN
+    CREATE EXTERNAL DATA SOURCE adls_staging
+    WITH (
+        LOCATION = 'abfss://staging@mvdcoredatalake.dfs.core.windows.net',
         CREDENTIAL = adls_managed_identity
     );
 END

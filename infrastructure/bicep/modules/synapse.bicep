@@ -3,14 +3,16 @@
 // Deployed to: MVD-Core-rg
 //
 // Creates Synapse workspace with system-assigned managed identity,
-// default ADLS storage, and serverless SQL pool (built-in).
+// managed VNet, and serverless SQL pool (built-in).
 // The managed identity needs Storage Blob Data Contributor on ADLS
 // (granted via rbac-assignment module in main.bicep).
+// Managed VNet enables managed private endpoints for secure storage access.
 // =============================================================================
 
 param location string
 param synapseWorkspaceName string = 'syn-mvd-cus-001'
 param defaultDataLakeAccountName string
+param defaultDataLakeAccountId string
 param defaultDataLakeFilesystem string = 'synapse'
 param sqlAdministratorLogin string = 'sqladmin'
 
@@ -32,21 +34,19 @@ resource synapse 'Microsoft.Synapse/workspaces@2021-06-01' = {
       accountUrl: 'https://${defaultDataLakeAccountName}.dfs.${environment().suffixes.storage}'
       filesystem: defaultDataLakeFilesystem
     }
+    managedVirtualNetwork: 'default'
+    managedVirtualNetworkSettings: {
+      preventDataExfiltration: true
+      allowedAadTenantIdsForLinking: []
+    }
     sqlAdministratorLogin: sqlAdministratorLogin
     sqlAdministratorLoginPassword: sqlAdministratorLoginPassword
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
   }
 }
 
-// Allow Azure services through workspace firewall
-resource firewallAllowAzure 'Microsoft.Synapse/workspaces/firewallRules@2021-06-01' = {
-  parent: synapse
-  name: 'AllowAllWindowsAzureIps'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
+// Firewall rules removed — public network access is disabled and
+// all connectivity goes through private endpoints.
 
 // --- Diagnostics -------------------------------------------------------------
 
