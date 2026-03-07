@@ -202,12 +202,12 @@ async def results_with_pricing(req: func.HttpRequest) -> func.HttpResponse:
     if auth_error:
         return auth_error
 
-    # Select view based on report type
-    view_name = (
-        "dbo.vw_ResultsWithPricingCFO"
-        if params.report_type == "RWPCFO"
-        else "dbo.vw_ResultsWithPricing"
-    )
+    # Select view based on report type (static whitelist — not user-controlled)
+    _VIEW_MAP = {
+        "RWP": "dbo.vw_ResultsWithPricing",
+        "RWPCFO": "dbo.vw_ResultsWithPricingCFO",
+    }
+    view_name = _VIEW_MAP[params.report_type]
 
     # Build GROUP BY query — date filtering happens BEFORE aggregation (matches SP)
     # Individual result rows are filtered by date range, THEN grouped with MIN/MAX
