@@ -1,0 +1,30 @@
+{
+    "name": "TR_RWP_Daily",
+    "properties": {
+        "description": "Nightly refresh of RWP gold data. Runs PL_RWP_Master (shared extract + RWP extract + DF_RWP_Transform) at 03:00 America/Chicago daily.",
+        "annotations": [],
+        "runtimeState": "Stopped",
+        "pipelines": [
+            {
+                "pipelineReference": {
+                    "referenceName": "PL_RWP_Master",
+                    "type": "PipelineReference"
+                },
+                "parameters": {}
+            }
+        ],
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+            "recurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "startTime": "2026-04-15T08:00:00Z",
+                "timeZone": "Central Standard Time",
+                "schedule": {
+                    "minutes": [0],
+                    "hours": [3]
+                }
+            }
+        }
+    }
+}

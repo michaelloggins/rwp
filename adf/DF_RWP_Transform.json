@@ -526,7 +526,7 @@
                 "    !startsWith(upper(COMPNAME), 'ZZZ')",
                 "    && !in(['Test RightFax 2','Test RightFax 1','Test RightFax 4','ACCL0933','RESEARCH ONLY','MiraVista Quality System','Greater Than','Additional Positive Unconfirmed'], COMPNAME)",
                 "    && !startsWith(COMPNAME, 'RESEARCH ONLY')",
-                "    && !contains(COMPNAME, 'Internal')",
+                "    && instr(COMPNAME, 'Internal') == 0",
                 "    && CATEGORY != 'Internal'",
                 ") ~> FilterCompanies",
                 "",
